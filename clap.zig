@@ -645,6 +645,27 @@ pub const ParseOptions = struct {
     diagnostic: ?*Diagnostic = null,
 };
 
+pub fn parseOrHelp(
+    comptime Id: type,
+    comptime params: []const Param(Id),
+    comptime value_parsers: anytype,
+    opt: ParseOptions,
+    help_writer: ?std.fs.File.Writer, //anytype,
+) !Result(Id, params, value_parsers) {
+    var help_opts = HelpOptions{};
+    help_opts.writer = help_writer orelse std.io.getStdOut().writer();
+
+    var res = parse(Id, params, value_parsers, opt) catch |err| {
+        return err;
+    };
+    res.help_options = help_opts;
+    if (res.args.help != 0) {
+        try res.showHelp();
+        return error.AbortAfterHelp;
+    }
+    return res;
+}
+
 /// Same as `parseEx` but uses the `args.OsIterator` by default.
 pub fn parse(
     comptime Id: type,
@@ -683,9 +704,14 @@ pub fn Result(
         positionals: []const FindPositionalType(Id, params, value_parsers),
         exe_arg: ?[]const u8,
         arena: std.heap.ArenaAllocator,
+        help_options: HelpOptions = .{},
 
         pub fn deinit(result: @This()) void {
             result.arena.deinit();
+        }
+
+        pub fn showHelp(self: @This()) !void {
+            try help(self.help_options.writer orelse std.io.getStdErr().writer(), Help, params, self.help_options);
         }
     };
 }
@@ -1106,6 +1132,9 @@ pub const HelpOptions = struct {
 
     /// The number of empty lines between each printed parameter.
     spacing_between_parameters: usize = 1,
+
+    /// TODO
+    writer: ?std.fs.File.Writer = null,
 };
 
 /// Print a slice of `Param` formatted as a help string to `writer`. This function expects
