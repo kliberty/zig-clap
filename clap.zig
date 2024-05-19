@@ -813,9 +813,13 @@ fn parseArg(
     positionals: anytype,
     arg: streaming.Arg(Id),
 ) !void {
+    const parser_t = comptime switch (param.takes_value) {
+        .none => undefined,
+        .one, .many => parsers.recursiveSearchT(value_parsers, param.id.value()),
+    };
     const parser = comptime switch (param.takes_value) {
         .none => undefined,
-        .one, .many => @field(value_parsers, param.id.value()),
+        .one, .many => parsers.recursiveSearch(parser_t, value_parsers, param.id.value()),
     };
 
     const longest = comptime param.names.longest();
@@ -878,10 +882,10 @@ fn ParamType(
     comptime value_parsers: anytype,
 ) type {
     const parser = switch (param.takes_value) {
-        .none => parsers.string,
-        .one, .many => @field(value_parsers, param.id.value()),
+        .none => @TypeOf(parsers.string),
+        .one, .many => parsers.recursiveSearchT(value_parsers, param.id.value()),
     };
-    return parsers.Result(@TypeOf(parser));
+    return parsers.Result(parser);
 }
 
 /// Deinitializes a struct of type `Argument`. Since the `Argument` type is generated, and we

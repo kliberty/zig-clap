@@ -3,6 +3,51 @@ const std = @import("std");
 const fmt = std.fmt;
 const testing = std.testing;
 
+pub fn recursiveSearchT(comptime value_parsers: anytype, comptime name: []const u8) type {
+    const info = @typeInfo(@TypeOf(value_parsers));
+    switch (info) {
+        .Struct => |s_info| {
+            for (s_info.fields) |field| {
+                switch (@typeInfo(field.type)) {
+                    .Struct => {
+                        return recursiveSearchT(@field(value_parsers, field.name), name);
+                    },
+                    else => {
+                        if (@hasField(@TypeOf(value_parsers), name)) {
+                            // @compileLog("field = ", name);
+                            // @compileLog("field2 = ", @TypeOf(@field(value_parsers, name)).name);
+                            return @TypeOf(@field(value_parsers, name));
+                        }
+                    },
+                }
+            }
+        },
+        else => unreachable,
+    }
+}
+pub fn recursiveSearch(comptime T: type, value_parsers: anytype, comptime name: []const u8) T {
+    const info = @typeInfo(@TypeOf(value_parsers));
+    switch (info) {
+        .Struct => |s_info| {
+            for (s_info.fields) |field| {
+                switch (@typeInfo(field.type)) {
+                    .Struct => {
+                        return recursiveSearch(T, @field(value_parsers, field.name), name);
+                    },
+                    else => {
+                        if (@hasField(@TypeOf(value_parsers), name)) {
+                            // @compileLog("field = ", name, T);
+                            // @compileLog("field2 = ", @TypeOf(@field(value_parsers, name)).name);
+                            return @field(value_parsers, name);
+                        }
+                    },
+                }
+            }
+        },
+        else => unreachable,
+    }
+}
+
 pub const default = .{
     .string = string,
     .str = string,
